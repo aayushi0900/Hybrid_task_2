@@ -22,4 +22,4 @@ To create/launch Application using Terraform
 
 Linkedin Article Link:
 
-Blog Article Link:
+Blog Article Link:https://medium.com/@96aayu/create-launch-an-application-using-terraform-through-efs-e702c23df212
