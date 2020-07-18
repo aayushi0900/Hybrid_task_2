@@ -137,7 +137,8 @@ resource "null_resource" "mounting" {
 resource "aws_s3_bucket" "mytask2-aayu-bucket-0906" {
   	bucket = "mytask2-aayu-bucket-0906"
   	acl    = "public-read"
-        versioning {
+       
+	 versioning {
           enabled = true
         }
 
@@ -146,87 +147,90 @@ resource "aws_s3_bucket" "mytask2-aayu-bucket-0906" {
   }
 }
 
-#To upload data to S3 bucket:
-resource "null_resource" "remove_and_upload_to_s3" {
-  	provisioner "local-exec" {
-    	command ="firefox index.html"
-}	
-	depends_on = [
-   	aws_s3_bucket.mytask2-aayu-bucket-0906,
-  ]
+resource "aws_s3_bucket_object" "mytask2_object" {
+  bucket = aws_s3_bucket.mytask2-aayu-bucket-0906.id
+  key    = "myimage.jpg"
+  source = "/home/aayushi/Desktop/terraform/Aayushi.jpg"   
+  acl = "public-read"
+  
+  force_destroy = true
+
+}
+ 
+ locals{
+             s3_origin_id = "S3-${aws_s3_bucket.mytask2-aayu-bucket-0906.bucket}"
 }
 
 # Create Cloudfront distribution:
-resource "aws_cloudfront_distribution" "mytask2-distribution" {
-    	origin {
-        domain_name = "${aws_s3_bucket.mytask2-aayu-bucket-0906.bucket_regional_domain_name}"
-        origin_id = "S3-${aws_s3_bucket.mytask2-aayu-bucket-0906.bucket}"
+ resource "aws_cloudfront_distribution" "mytask2_distribution" {
+  origin {
+    domain_name = "${aws_s3_bucket.mytask2-aayu-bucket-0906.bucket_regional_domain_name}"
+    origin_id   = "${aws_s3_bucket.mytask2-aayu-bucket-0906.id}"
 
-        custom_origin_config {
-            http_port = 80
-            https_port = 443
-            origin_protocol_policy = "match-viewer"
-            origin_ssl_protocols = ["TLSv1", "TLSv1.1", "TLSv1.2"]
-        }
-}
-	# By default, show index.html file:
-    	default_root_object = "index.html"
-    	enabled = true
-
-    	# If there is a 404, return index.html with a HTTP 200 Response:
-    	custom_error_response {
-        error_caching_min_ttl = 3000
-        error_code = 404
-        response_code = 200
-        response_page_path = "/index.html"
-    }
-
-    	default_cache_behavior {
-        allowed_methods = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
-        cached_methods = ["GET", "HEAD"]
-        target_origin_id = "S3-${aws_s3_bucket.mytask2-aayu-bucket-0906.bucket}"
-
-        #Not Forward all query strings, cookies and headers:
-        forwarded_values {
-            query_string = false
-	    cookies {
-		forward = "none"
-	    }
-            
-        }
-
-        viewer_protocol_policy = "redirect-to-https"
-        min_ttl = 0
-        default_ttl = 3600
-        max_ttl = 86400
-    }
-
-    	# Distributes content to all:
-    	price_class = "PriceClass_All"
-
-    	# Restricts who is able to access this content:
-    	restrictions {
-        geo_restriction {
-        # type of restriction, blacklist, whitelist or none:
-        restriction_type = "none"
-        }
-    }
-
-    	# SSL certificate for the service:
-    	viewer_certificate {
-        cloudfront_default_certificate = true
-    }
-}
-
-#OUTPUT:
-output "cloudfront_ip_addr" {
-  	value = aws_cloudfront_distribution.mytask2-distribution.domain_name
-}
-
-resource "null_resource" "running_website" {
-    depends_on = [null_resource.mounting]
-    provisioner "local-exec" {
-    command = "chrome ${aws_instance.mytask2-os.public_ip}"
   }
-}
 
+  enabled             = true
+  is_ipv6_enabled     = true
+  comment             = "S3 bucket"
+
+  default_cache_behavior {
+    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "${aws_s3_bucket.mytask2-aayu-bucket-0906.id}"
+
+    forwarded_values {
+      query_string = false
+
+      cookies {
+        forward = "none"
+      }
+    }
+
+    viewer_protocol_policy = "allow-all"
+    min_ttl                = 0
+    default_ttl            = 3600
+    max_ttl                = 86400
+  }
+
+  # Cache behavior with precedence 0
+  ordered_cache_behavior {
+    path_pattern     = "/content/immutable/*"
+    allowed_methods  = ["GET", "HEAD", "OPTIONS"]
+    cached_methods   = ["GET", "HEAD", "OPTIONS"]
+    target_origin_id = "${aws_s3_bucket.mytask2-aayu-bucket-0906.id}"
+
+    forwarded_values {
+      query_string = false
+
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl                = 0
+    default_ttl            = 86400
+    max_ttl                = 31536000
+    compress               = true
+    viewer_protocol_policy = "redirect-to-https"
+  }
+
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "whitelist"
+      locations        = ["IN"]
+    }
+  }
+
+  tags = {
+    Environment = "production"
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+
+  depends_on = [
+   aws_s3_bucket.mytask2-aayu-bucket-0906
+]
+}
