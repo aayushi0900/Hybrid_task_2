@@ -20,6 +20,6 @@ To create/launch Application using Terraform
 
 => Create a Cloudfront using s3 bucket(which contains images) and use the Cloudfront URL to  update in code in /var/www/html.
 
-Linkedin Article Link:
+Linkedin Article Link:https://www.linkedin.com/posts/aayushi-singhal-7b19a61a8_createlaunch-an-application-using-terraform-activity-6690186199207870464-8kww
 
 Blog Article Link:https://medium.com/@96aayu/create-launch-an-application-using-terraform-through-efs-e702c23df212
